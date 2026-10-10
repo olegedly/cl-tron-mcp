@@ -160,6 +160,9 @@ NIL as \"[]\"; \"properties\" must serialize as \"{}\" when empty."
 (defun register-tool (name description &key input-schema output-schema requires-approval documentation-uri concurrency)
   "Register a tool with descriptor and handler.
    requires-approval t means approvalLevel \"user\" (human must approve); nil means \"none\" (auto-run)."
+  ;; OUTPUT-SCHEMA stays in the lambda list so the 62 defining-macro call sites
+  ;; keep working untouched, but it is no longer advertised; see below.
+  (declare (ignore output-schema))
   (let ((descriptor (make-hash-table :test 'equal)))
     ;; NOTE: keys are pipe-escaped (:|name|, not :name) so the reader preserves
     ;; their lowercase/camelCase spelling. An unescaped :name reads as the
@@ -173,7 +176,29 @@ NIL as \"[]\"; \"properties\" must serialize as \"{}\" when empty."
     ;; (see NORMALIZE-TOOL-SCHEMA above) -- this is "bug #7", the layer below
     ;; the top-level descriptor-key fix already applied to this file.
     (setf (gethash :|inputSchema| descriptor) (normalize-tool-schema input-schema))
-    (setf (gethash :|outputSchema| descriptor) (normalize-tool-schema output-schema))
+    ;; outputSchema is deliberately NOT advertised.
+    ;;
+    ;; MCP 2026-07-28 (and the 2025 revisions) require that a tool declaring an
+    ;; outputSchema answer every call with structuredContent validating against
+    ;; it. Every tool here returns only `content` text -- STRUCTUREDCONTENT
+    ;; appears nowhere in this tree -- so advertising the schema is a promise
+    ;; the server cannot keep, and a spec-conforming client enforces it. The
+    ;; official @modelcontextprotocol/client SDK, which DeepSeek Harness
+    ;; validates CallToolResult with, fails the call outright:
+    ;;
+    ;;   Tool <name> has an output schema but did not return structured content
+    ;;
+    ;; That broke all 94 tools at once, because every tool passes an
+    ;; :output-schema (62 via the defining macros, the rest via this call).
+    ;; The schemas themselves carried almost no information anyway: most are
+    ;; normalize-tool-schema's bare (:type "object"), with no properties.
+    ;;
+    ;; Omitting the key is the spec-clean fix: outputSchema is optional, a tool
+    ;; without one is answered from `content`, and callers lose only a schema
+    ;; that was never satisfied. This mirrors *JSON-SCHEMA-PRIMITIVE-TYPES*
+    ;; above -- the same class of strict-client conformance fix, applied to the
+    ;; output side. Restoring the key requires emitting structuredContent from
+    ;; the tool-call path first (handlers-tools.lisp), for every tool.
     (setf (gethash :|requiresApproval| descriptor) (or requires-approval nil))
     (setf (gethash :|approvalLevel| descriptor) (if requires-approval "user" "none"))
     (setf (gethash :|documentationUri| descriptor) documentation-uri)
