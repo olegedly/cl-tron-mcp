@@ -36,6 +36,14 @@
       (progn
         (cl-tron-mcp/logging:ensure-log-to-stream *error-output*)
         (cl-tron-mcp/logging:log-info (format nil "[MCP] Starting server with ~a transport" transport))
+        ;; Standing approval, when the launcher asked for it. A NIL result leaves
+        ;; the approval gate exactly as strict as it was; see *WHITELIST-ENV-VAR*
+        ;; in the security module for the accepted values.
+        (let ((whitelist (cl-tron-mcp/security:configure-whitelist-from-env)))
+          (when whitelist
+            (cl-tron-mcp/logging:log-info
+             (format nil "[MCP] Approval whitelist enabled from ~a: ~a"
+                     cl-tron-mcp/security:*whitelist-env-var* whitelist))))
         (case transport
           (:combined
            (setq *current-transport* :combined)

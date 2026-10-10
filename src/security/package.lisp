@@ -33,6 +33,9 @@
    #:whitelist-status
    #:whitelist-check
    #:whitelist-match-p
+   #:*whitelist-env-var*
+   #:parse-whitelist-spec
+   #:configure-whitelist-from-env
    #:cleanup-expired-approvals
    #:cleanup-old-approved-requests
    #:cleanup-all-approvals))

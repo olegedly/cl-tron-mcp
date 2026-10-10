@@ -58,7 +58,11 @@
     :cl-tron-mcp/logging
     :cl-tron-mcp/config
     :cl-tron-mcp/json-compat
-    :cl-tron-mcp/transport)
+    :cl-tron-mcp/transport
+    ;; START-SERVER applies CL_TRON_MCP_WHITELIST through the security module's
+    ;; whitelist. It already arrived transitively via transport -> tools, but the
+    ;; reference is direct, so the dependency is declared rather than inherited.
+    :cl-tron-mcp/security)
   :components (
     ;; Core
     (:file "src/core/package")

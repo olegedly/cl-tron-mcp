@@ -207,3 +207,79 @@ When response is :approved, add to *approved-request-ids* with timestamp for cle
 
 (defun get-unix-time ()
   (local-time:timestamp-to-unix (local-time:now)))
+
+;;; ---------------------------------------------------------------------------
+;;; Standing approval from the environment.
+;;;
+;;; The approval flow is built for a client with a human behind it: a guarded
+;;; tools/call returns approval_required with a request_id, the human answers the
+;;; `approval/respond` JSON-RPC method, and the client re-invokes the tool with
+;;; that id. `approval/respond` is a raw method, not a tool, so an MCP client
+;;; whose only interface is tools/call -- an agent harness, for instance -- has no
+;;; way to answer, and the guarded tools are unreachable for it. The whitelist is
+;;; the reachable alternative, but it lives in memory only and defaults to empty
+;;; and disabled, so it cannot survive a server restart on its own.
+;;;
+;;; *WHITELIST-ENV-VAR* is the durable form: the launcher sets it, START-SERVER
+;;; applies it, and the approval gate stays untouched for anyone who does not set
+;;; it. This grants standing approval; it does not weaken the gate for unset runs.
+
+(defparameter *whitelist-env-var* "CL_TRON_MCP_WHITELIST"
+  "Environment variable that pre-populates the approval whitelist at startup.
+
+Unset (or blank) leaves the whitelist empty and disabled -- the gate behaves
+exactly as before. Two accepted forms:
+
+  CL_TRON_MCP_WHITELIST='*'          every guarded operation, pattern '*'
+  CL_TRON_MCP_WHITELIST='all'        same thing, spelled out
+  CL_TRON_MCP_WHITELIST='eval:*,compile-file:*,set-breakpoint:*'
+                                     listed operations, each with a pattern
+
+Entries are separated by commas or semicolons. An entry is OPERATION or
+OPERATION:PATTERN, PATTERN defaulting to '*'. OPERATION is one of
+*APPROVAL-REQUIRED-OPERATIONS*; PATTERN follows WHITELIST-MATCH-P, so '*' is a
+wildcard and anything else is a case-insensitive substring match against the tool
+name. Unknown operations are skipped rather than signalled: this runs during
+startup, and a typo in an environment variable should not keep the server down.")
+
+(defun parse-whitelist-spec (spec)
+  "Parse a *WHITELIST-ENV-VAR* value into a list of (OPERATION . PATTERN), or the
+keyword :all for the wildcard spellings \"*\" and \"all\".
+
+Unknown operations and blank entries are dropped, so the result can be NIL even
+for a non-blank SPEC."
+  (let ((trimmed (string-trim '(#\Space #\Tab #\Newline #\Return) spec)))
+    (if (member trimmed '("*" "all") :test #'string-equal)
+        :all
+        (loop for raw in (uiop:split-string trimmed :separator '(#\, #\;))
+              for entry = (string-trim '(#\Space #\Tab) raw)
+              when (plusp (length entry))
+                append (let* ((colon (position #\: entry))
+                              (name (if colon (subseq entry 0 colon) entry))
+                              (pattern (if colon (subseq entry (1+ colon)) "*"))
+                              (operation (coerce-operation-key name)))
+                         (when (operation-requires-approval operation)
+                           (list (cons operation pattern))))))))
+
+(defun configure-whitelist-from-env ()
+  "Apply *WHITELIST-ENV-VAR* to the whitelist. Returns a summary plist when the
+whitelist was enabled, or NIL when the variable is unset, blank, or held nothing
+this build recognizes -- in which case nothing is enabled and the gate is as
+strict as it was."
+  (let ((spec (uiop:getenv *whitelist-env-var*)))
+    (when (and spec (plusp (length (string-trim '(#\Space #\Tab) spec))))
+      (let ((parsed (parse-whitelist-spec spec)))
+        (cond
+          ((eq parsed :all)
+           (dolist (operation *approval-required-operations*)
+             (whitelist-add operation "*"))
+           (whitelist-enable t)
+           (list :enabled t :scope :all
+                 :operations (copy-list *approval-required-operations*)))
+          (parsed
+           (dolist (pair parsed)
+             (whitelist-add (car pair) (cdr pair)))
+           (whitelist-enable t)
+           (list :enabled t :scope :listed
+                 :operations (mapcar #'car parsed)))
+          (t nil))))))
