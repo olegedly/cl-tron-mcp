@@ -217,19 +217,19 @@ in the debugger, the only thread where frame locals exist (FD-009 bug #9)."
   "Step into next expression in FRAME."
   (unless *repl-connected*
     (return-from repl-step (make-not-connected-error)))
-  (swank-step :frame-index frame))
+  (swank-step :frame frame))
 
 (defun repl-next (&key frame)
   "Step over next expression in FRAME."
   (unless *repl-connected*
     (return-from repl-next (make-not-connected-error)))
-  (swank-next :frame-index frame))
+  (swank-next :frame frame))
 
 (defun repl-out (&key frame)
   "Step out of current frame."
   (unless *repl-connected*
     (return-from repl-out (make-not-connected-error)))
-  (swank-out :frame-index frame))
+  (swank-out :frame frame))
 
 (defun repl-continue ()
   "Continue execution from debugger."
@@ -255,17 +255,17 @@ the debugger's restart list, matching the order shown in the :debug payload)."
 ;;; Unified Breakpoint Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun repl-set-breakpoint (&key function condition hit_count thread)
+(defun repl-set-breakpoint (&key function condition hit-count thread)
   "Set a breakpoint on FUNCTION."
   (unless *repl-connected*
     (return-from repl-set-breakpoint (make-not-connected-error)))
-  (mcp-swank-set-breakpoint :function function :condition condition :hit-count hit_count :thread thread))
+  (mcp-swank-set-breakpoint :function function :condition condition :hit-count hit-count :thread thread))
 
-(defun repl-remove-breakpoint (&key breakpoint_id)
+(defun repl-remove-breakpoint (&key breakpoint-id)
   "Remove breakpoint by ID."
   (unless *repl-connected*
     (return-from repl-remove-breakpoint (make-not-connected-error)))
-  (mcp-swank-remove-breakpoint :breakpoint-id breakpoint_id))
+  (mcp-swank-remove-breakpoint :breakpoint-id breakpoint-id))
 
 (defun repl-list-breakpoints ()
   "List all breakpoints."
@@ -273,11 +273,11 @@ the debugger's restart list, matching the order shown in the :debug payload)."
     (return-from repl-list-breakpoints (make-not-connected-error)))
   (mcp-swank-list-breakpoints))
 
-(defun repl-toggle-breakpoint (&key breakpoint_id)
+(defun repl-toggle-breakpoint (&key breakpoint-id)
   "Toggle breakpoint enabled state."
   (unless *repl-connected*
     (return-from repl-toggle-breakpoint (make-not-connected-error)))
-  (mcp-swank-toggle-breakpoint :breakpoint-id breakpoint_id))
+  (mcp-swank-toggle-breakpoint :breakpoint-id breakpoint-id))
 
 (define-validated-tool "repl_connect"
   "Connect to Swank REPL"
@@ -456,7 +456,7 @@ the debugger's restart list, matching the order shown in the :debug payload)."
 
 (define-validated-tool "repl_set_breakpoint"
   "Set a breakpoint"
-  :input-schema (list :function "string" :condition "string" :hitCount "integer" :thread "string")
+  :input-schema (list :function "string" :condition "string" :|hitCount| "integer" :thread "string")
   :output-schema (list :type "object")
   :requires-approval t
   :documentation-uri "file://docs/tools/repl-set-breakpoint.md"
@@ -468,7 +468,7 @@ the debugger's restart list, matching the order shown in the :debug payload)."
 
 (define-validated-tool "repl_remove_breakpoint"
   "Remove a breakpoint"
-  :input-schema (list :breakpointId "integer")
+  :input-schema (list :|breakpointId| "integer")
   :output-schema (list :type "object")
   :requires-approval nil
   :documentation-uri "file://docs/tools/repl-remove-breakpoint.md"
@@ -485,7 +485,7 @@ the debugger's restart list, matching the order shown in the :debug payload)."
 
 (define-validated-tool "repl_toggle_breakpoint"
   "Toggle breakpoint state"
-  :input-schema (list :breakpointId "integer")
+  :input-schema (list :|breakpointId| "integer")
   :output-schema (list :type "object")
   :requires-approval nil
   :documentation-uri "file://docs/tools/repl-toggle-breakpoint.md"

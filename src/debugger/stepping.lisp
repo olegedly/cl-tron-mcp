@@ -9,9 +9,9 @@
   "Step execution in frame via Swank connection. MODE can be :into, :over, or :out."
   (handler-case
       (let ((result (ecase mode
-                      (:into (swank-step frame))
-                      (:over (swank-next frame))
-                      (:out (swank-out frame)))))
+                      (:into (swank-step :frame frame))
+                      (:over (swank-next :frame frame))
+                      (:out (swank-out :frame frame)))))
         (if (getf result :error)
             result
             (progn

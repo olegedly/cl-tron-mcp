@@ -39,6 +39,22 @@
     #:list-tool-descriptors
     #:repl-help
 
+   ;; Validation API (src/tools/validation.lisp). The tests already import
+   ;; these by name, and a tool defined outside this package -- the
+   ;; installation tools are -- has to be able to call them, so they are
+   ;; external rather than merely internal.
+   #:validation-error
+   #:validation-error-message
+   #:validation-error-parameter
+   #:validate-required
+   #:validate-string
+   #:validate-integer
+   #:validate-boolean
+   #:validate-choice
+   #:validate-object-id
+   #:validate-symbol-name
+   #:validate-package-name
+
    ;; Tool-call execution support (src/tools/handlers-support.lisp;
    ;; cl-tron-mcp#2 "bug #8" -- relocated here, not shared/imported
    ;; from cl-tron-mcp/protocol; see that file's header comment)

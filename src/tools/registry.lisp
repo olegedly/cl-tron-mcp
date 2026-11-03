@@ -37,31 +37,32 @@
 ;;;
 ;;; ~90 tool registrations across src/tools/*.lisp author :input-schema
 ;;; and :output-schema as flat plists, e.g.
-;;;   (list :objectId "string" :maxDepth "integer")
+;;;   (list :|objectId| "string" :|maxDepth| "integer")
 ;;; or the bare-type shorthand
 ;;;   (list :type "object")
 ;;; Neither shape is valid JSON Schema: MCP requires
 ;;;   {"type":"object","properties":{...}}
-;;; and every key in that authored plist is an UNESCAPED keyword, which
-;;; SBCL's standard readtable upcases at read time (before any of this code
-;;; runs) -- :objectId is already, irrecoverably, the symbol OBJECTID by the
-;;; time register-tool sees it. The functions below normalize whatever shape
-;;; a call site authored into a spec-valid JSON Schema hash-table, at this
-;;; single chokepoint, without touching any of the ~90 call sites.
+;;; The functions below normalize whatever shape a call site authored into a
+;;; spec-valid JSON Schema hash-table, at this single chokepoint.
 ;;;
-;;; Property-name casing choice: DOWNCASE (e.g. "objectid"), not an attempt
-;;; to reconstruct "objectId". Reconstruction is impossible from a symbol
-;;; whose original case is already gone. Downcasing is safe because
-;;; NORMALIZE-ARGUMENT-KEY (below) upcases every letter of an incoming
-;;; wire-argument key before it ever checks for a camelCase word-boundary,
-;;; so "OBJECTID" (today's served spelling) and "objectid" (this fix's
-;;; spelling) normalize identically -- both to :OBJECTID. Downcasing the
-;;; served property name is therefore a pure cosmetic/shape fix: it changes
-;;; no argument-binding behavior relative to the pre-fix baseline, so
-;;; NORMALIZE-ARGUMENT-KEY needed no change. (Whether that baseline
-;;; argument-binding is itself fully correct for every camelCase-vs-
-;;; snake_case handler parameter is a separate, deeper, pre-existing
-;;; question this fix does not touch -- see task-14 report.)
+;;; Property-name casing. The case of an UNESCAPED token is gone before this
+;;; file is read: :objectId is the symbol OBJECTID by the time register-tool
+;;; sees it, indistinguishable from a genuinely one-word :objectid, so all
+;;; such names are served downcased, as they always were. A call site that
+;;; cares about the wire spelling says so the way this file already says it
+;;; for descriptor keys -- pipe-escaped, :|objectId| -- and the spelling
+;;; survives to be served verbatim by SCHEMA-PROPERTY-NAME.
+;;;
+;;; The served spelling is not cosmetic: it is the key the handler actually
+;;; binds. NORMALIZE-ARGUMENT-KEY turns an incoming "objectId" into a keyword
+;;; named OBJECT_ID, the one a lambda list spelled `&key object_id' binds, and
+;;; DEFINE-VALIDATED-TOOL now derives its parameters through that same
+;;; function instead of upcasing the symbol name itself. Before, the two
+;;; disagreed: "objectid" normalized to a keyword named OBJECTID while the
+;;; handler bound OBJECT_ID, so 21 tools advertised a property their own body
+;;; could never see and answered every call with "Required parameter is
+;;; missing". One normalizer, used on both sides of the wire, is what makes
+;;; that unrepresentable rather than merely fixed.
 
 (defparameter *json-schema-primitive-types*
   '("object" "array" "string" "number" "integer" "boolean" "null")
@@ -104,6 +105,17 @@ it serializes as a plain JSON array/scalar, not a nested schema."
                        (schema-keyword-plist->hash v)
                        v)))
     h))
+
+(defun schema-property-name (key)
+  "The wire spelling of a schema KEY symbol, as the call site authored it.
+A pipe-escaped token (`:|objectId|') keeps its case through the reader, so
+its spelling is served as written; an ordinary token was upcased by the
+reader, so the authored case is unrecoverable and the name is served
+downcased -- which is what every unescaped key has always been served as."
+  (let ((name (string key)))
+    (if (string= name (string-upcase name))
+        (string-downcase name)
+        name)))
 
 (defun schema-property-fragment (value)
   "Convert one authored property VALUE into a JSON Schema fragment:
@@ -152,7 +164,7 @@ NIL as \"[]\"; \"properties\" must serialize as \"{}\" when empty."
        (setf (gethash "type" h) "object")
        (let ((props (make-hash-table :test 'equal)))
          (loop for (k v) on schema by #'cddr
-               do (setf (gethash (string-downcase (string k)) props)
+               do (setf (gethash (schema-property-name k) props)
                         (schema-property-fragment v)))
          (setf (gethash "properties" h) props))))
     h))

@@ -16,13 +16,13 @@
             (repl-compile :code code
                                               :package (or package "CL-USER")
                                               :filename (or filename "repl"))
-            (cl-tron-mcp/hot-reload:compile-and-load :code code
+            (cl-tron-mcp/hot-reload:compile-and-load code
                                                      :filename filename
                                                      :package package)))
 
 (define-validated-tool "reload_system"
   "Reload an ASDF system in the connected Lisp image via Swank. Falls back to local reload when not connected."
-  :input-schema (list :systemName "string" :force "boolean")
+  :input-schema (list :|systemName| "string" :force "boolean")
   :output-schema (list :type "object")
   :requires-approval t
   :documentation-uri "file://docs/tools/reload-system.md"
@@ -32,4 +32,4 @@
             (repl-eval
              :code (format nil "(asdf:load-system ~s~a)"
                            system_name (if force " :force :all" "")))
-            (cl-tron-mcp/hot-reload:reload-system :system-name system_name :force force)))
+            (cl-tron-mcp/hot-reload:reload-system system_name :force force)))

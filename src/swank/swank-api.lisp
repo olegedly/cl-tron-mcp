@@ -164,19 +164,23 @@ indexes *sldb-restarts* from 0."
                           :package "CL-USER" :thread thread)
             (cl-tron-mcp/resources:make-error "NOT_IN_STEPPER"))))))
 
-(defun swank-step (&key (frame-index 0))
+;;; The frame index is accepted for symmetry with the other stepping entry
+;;; points and is deliberately unused: stepping names a restart, not a frame.
+;;; The keyword is `frame', the spelling the MCP schema and the tool docs use,
+;;; and the one the repl_* wrappers pass.
+(defun swank-step (&key (frame 0))
   "Step into next expression."
-  (declare (ignore frame-index))
+  (declare (ignore frame))
   (%invoke-step-restart "STEP-INTO"))
 
-(defun swank-next (&key (frame-index 0))
+(defun swank-next (&key (frame 0))
   "Step over next expression."
-  (declare (ignore frame-index))
+  (declare (ignore frame))
   (%invoke-step-restart "STEP-NEXT"))
 
-(defun swank-out (&key (frame-index 0))
+(defun swank-out (&key (frame 0))
   "Step out of current frame."
-  (declare (ignore frame-index))
+  (declare (ignore frame))
   (%invoke-step-restart "STEP-OUT"))
 
 (defun swank-step-continue ()

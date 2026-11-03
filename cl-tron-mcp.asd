@@ -445,6 +445,7 @@
     (:file "tests/security-test")
     (:file "tests/transport-test")
     (:file "tests/validation-test")
+    (:file "tests/tool-schema-test")
     (:file "tests/swank-test")
     (:file "tests/swank-integration-test")
     (:file "tests/mcp-e2e-test")

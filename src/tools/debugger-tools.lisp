@@ -21,23 +21,23 @@
 
 (define-validated-tool "breakpoint_set"
   "Set a breakpoint on a named function with optional condition"
-  :input-schema (list :functionName "string" :condition "string" :hitCount "integer")
+  :input-schema (list :|functionName| "string" :condition "string" :|hitCount| "integer")
   :output-schema (list :type "object")
   :requires-approval t
   :documentation-uri "file://docs/tools/breakpoint-set.md"
   :validation ((validate-symbol-name "function_name" function_name :required t)
                (when condition (validate-string "condition" condition))
                (when hit_count (validate-integer "hit_count" hit_count :min 0)))
-  :body (cl-tron-mcp/debugger:set-breakpoint :function-name function_name :condition condition :hit-count hit_count))
+  :body (cl-tron-mcp/debugger:set-breakpoint function_name :condition condition :hit-count hit_count))
 
 (define-validated-tool "breakpoint_remove"
   "Remove a breakpoint by ID"
-  :input-schema (list :breakpointId "integer")
+  :input-schema (list :|breakpointId| "integer")
   :output-schema (list :type "object")
   :requires-approval t
   :documentation-uri "file://docs/tools/breakpoint-remove.md"
   :validation ((validate-integer "breakpoint_id" breakpoint_id :required t :min 0))
-  :body (cl-tron-mcp/debugger:remove-breakpoint :breakpoint-id breakpoint_id))
+  :body (cl-tron-mcp/debugger:remove-breakpoint breakpoint_id))
 
 (define-simple-tool "breakpoint_list"
   "List all active breakpoints with ID, location, and condition"
@@ -49,7 +49,7 @@
 
 (define-validated-tool "breakpoint_toggle"
   "Enable or disable a breakpoint by ID without removing it"
-  :input-schema (list :breakpointId "integer")
+  :input-schema (list :|breakpointId| "integer")
   :output-schema (list :type "object")
   :requires-approval t
   :documentation-uri "file://docs/tools/breakpoint-toggle.md"
@@ -64,4 +64,7 @@
   :documentation-uri "file://docs/tools/step-frame.md"
   :validation ((when frame (validate-integer "frame" frame :min 0))
                (when mode (validate-choice "mode" mode '("into" "over" "out"))))
-  :body (cl-tron-mcp/debugger:step-frame :frame frame :mode mode))
+  ;; MODE crosses the wire as a string, but STEP-FRAME dispatches on the
+  ;; keyword, so the spelling is interned here -- the schema's :mode values are
+  ;; already the keyword names.
+  :body (cl-tron-mcp/debugger:step-frame frame :mode (intern (string-upcase mode) :keyword)))

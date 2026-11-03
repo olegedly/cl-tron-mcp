@@ -107,10 +107,15 @@ Raises validation-error if validation fails."
 
 (defun validate-symbol-name (name value &key required)
   "Validate that VALUE is a valid symbol name (string).
-Raises validation-error if validation fails."
+Raises validation-error if validation fails.
+
+The character set is the reader's, minus the parts that would let a name
+smuggle in a form. A dot is in it because a package-qualified name is spelled
+with one -- RP-ENGINE.CORE::APPLY-DECLARATION-FORM -- and the xref and
+inspector tools are useless on a function whose package cannot be named."
   (validate-string name value :required required :min-length 1)
   (when (and value (stringp value))
-    (unless (cl-ppcre:scan "^[a-zA-Z0-9-+*/<>=!&$%_:]+$" value)
+    (unless (cl-ppcre:scan "^[a-zA-Z0-9-+*/<>=!&$%_:.]+$" value)
       (error 'validation-error
              :parameter name
              :message "Invalid symbol name")))
@@ -118,10 +123,14 @@ Raises validation-error if validation fails."
 
 (defun validate-package-name (name value &key required)
   "Validate that VALUE is a valid package name (string).
-Raises validation-error if validation fails."
+Raises validation-error if validation fails.
+
+A dot and a slash belong in the set: a package name like RP-ENGINE.CORE or
+CL-TRON-MCP/TOOLS is spelled with them, and refusing them made every
+inspector tool useless on a packaged name."
   (validate-string name value :required required :min-length 1)
   (when (and value (stringp value))
-    (unless (cl-ppcre:scan "^[a-zA-Z0-9-]+$" value)
+    (unless (cl-ppcre:scan "^[a-zA-Z0-9./_-]+$" value)
       (error 'validation-error
              :parameter name
              :message "Invalid package name")))

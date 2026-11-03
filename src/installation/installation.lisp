@@ -203,11 +203,17 @@ For agents without specific configuration:
 Port Policy: All agents must use MCP server port 4006. Direct access to port 4005 is prohibited by protocol enforcement."))
    ))
 
+(defun installation-guide (platform)
+  "The guide for PLATFORM, falling back to the universal one.
+*INSTALLATION-GUIDES* is an alist; the two readers below used to GETHASH it,
+which signalled a type error on every call."
+  (or (cdr (assoc platform *installation-guides* :test #'string=))
+      (cdr (assoc "universal" *installation-guides* :test #'string=))))
+
 (defun get-skill-installation-guide (target-platform format)
   "Return installation guide for specified agent platform and format"
   (declare (ignore format))
-  (let ((guide (gethash target-platform *installation-guides* 
-                        (gethash "universal" *installation-guides*))))
+  (let ((guide (installation-guide target-platform)))
     (list :webpage "https://cl-tron-mcp.readthedocs.io/en/latest/installation/"
           :documentation guide
           :port_policy *port-compliance*
@@ -233,11 +239,12 @@ Port Policy: All agents must use MCP server port 4006. Direct access to port 400
         :summary "Tron MCP skill registry for agent integration"
         :port_compliance *port-compliance*))
 
-(defun recommend-skill-handler (agent-type)
-  "Recommend skill based on agent type"
-  (let ((guide (gethash (string-downcase agent-type) *installation-guides*
-                        (gethash "universal" *installation-guides*))))
-    (list :recommended_skill (format nil "~a-tron-integration" (string-downcase agent-type))
+(defun recommend-skill-handler (&key agent_type)
+  "Recommend skill based on agent type. Registered as the skill_recommend
+tool, so the argument arrives as the :AGENT_TYPE keyword the wire's
+\"agent_type\" normalises to; a positional parameter could not have bound it."
+  (let ((guide (installation-guide (string-downcase agent_type))))
+    (list :recommended_skill (format nil "~a-tron-integration" (string-downcase agent_type))
           :install_instructions guide
           :port_requirements *port-compliance*)))
 
@@ -254,9 +261,11 @@ Port Policy: All agents must use MCP server port 4006. Direct access to port 400
   :output-schema (list :webpage "string" :documentation "string")
   :requires-approval nil
   :documentation-uri "file://docs/tools/tool-install-guide.md"
-  :validation ((validate-string "target_platform" target-platform :required t)
+  :validation ((validate-string "target_platform" target_platform :required t)
                (validate-string "format" format :required t))
-  :body (get-skill-installation-guide :target-platform target-platform :format format))
+  ;; The guide function takes its two arguments positionally; calling it with
+  ;; keywords passed four, so this tool could never have answered a call.
+  :body (get-skill-installation-guide target_platform format))
 
 (cl-tron-mcp/tools:define-simple-tool "skill_discover"
   "Discover available agent skills"

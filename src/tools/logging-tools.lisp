@@ -12,7 +12,10 @@
   :validation ((when level (validate-choice "level" level '("trace" "debug" "info" "warn" "error" "fatal")))
                (when package (validate-package-name "package" package))
                (when appender (validate-string "appender" appender)))
-  :body (cl-tron-mcp/logging:log-configure :level level :package package :appender appender))
+  ;; LEVEL arrives as a string; log4cl dispatches on the keyword.
+  :body (cl-tron-mcp/logging:log-configure
+         :level (and level (intern (string-upcase level) :keyword))
+         :package package :appender appender))
 
 (define-validated-tool "log_info"
   "Log info message"
@@ -22,7 +25,7 @@
   :documentation-uri "file://docs/tools/log-info.md"
   :validation ((validate-string "message" message :required t)
                (when package (validate-package-name "package" package)))
-  :body (cl-tron-mcp/logging:log-info :message message :package package))
+  :body (cl-tron-mcp/logging:log-info message :package package))
 
 (define-validated-tool "log_debug"
   "Log debug message"
@@ -32,7 +35,7 @@
   :documentation-uri "file://docs/tools/log-debug.md"
   :validation ((validate-string "message" message :required t)
                (when package (validate-package-name "package" package)))
-  :body (cl-tron-mcp/logging:log-debug :message message :package package))
+  :body (cl-tron-mcp/logging:log-debug message :package package))
 
 (define-validated-tool "log_warn"
   "Log warning message"
@@ -42,7 +45,7 @@
   :documentation-uri "file://docs/tools/log-warn.md"
   :validation ((validate-string "message" message :required t)
                (when package (validate-package-name "package" package)))
-  :body (cl-tron-mcp/logging:log-warn :message message :package package))
+  :body (cl-tron-mcp/logging:log-warn message :package package))
 
 (define-validated-tool "log_error"
   "Log error message"
@@ -52,4 +55,4 @@
   :documentation-uri "file://docs/tools/log-error.md"
   :validation ((validate-string "message" message :required t)
                (when package (validate-package-name "package" package)))
-  :body (cl-tron-mcp/logging:log-error :message message :package package))
+  :body (cl-tron-mcp/logging:log-error message :package package))
